@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#fffaf7">
+<title>Claire Baby Tracker</title>
+<style>
+:root{--bg:#fffaf7;--card:#fff;--text:#292421;--muted:#786f69;--line:#eadfd8;--accent:#bd7867;--soft:#f6e8e2;--bad:#a33}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+main{max-width:760px;margin:auto;padding:18px 14px 50px}.top{display:flex;justify-content:space-between;gap:10px;align-items:start;flex-wrap:wrap}
+h1{font-size:25px;margin:4px 0}.sub,.muted{color:var(--muted)}.sub{margin-bottom:16px}.badge{font-size:12px;border:1px solid var(--line);background:white;border-radius:999px;padding:6px 9px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.card,.panel{background:var(--card);border:1px solid var(--line);border-radius:16px}
+.card{padding:13px}.label{font-size:13px;color:var(--muted)}.value{font-size:24px;font-weight:700;margin-top:3px}
+.panel{padding:15px;margin-top:14px}h2{font-size:17px;margin:0 0 12px}.tabs,.actions{display:flex;flex-wrap:wrap;gap:8px}
+button{min-height:44px;border-radius:11px;border:1px solid var(--line);background:white;padding:9px 13px;font-size:15px;color:var(--text);cursor:pointer}
+button:disabled{opacity:.5}.active,.primary{background:var(--accent);border-color:var(--accent);color:white}.quick{background:var(--soft)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}label{font-size:13px;color:var(--muted);display:block}
+input,select{width:100%;font-size:16px;margin-top:5px;padding:11px;border:1px solid var(--line);border-radius:10px;background:white;color:var(--text)}
+form{margin-top:12px}.hidden{display:none!important}.entry{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.entry:last-child{border-bottom:0}.entry-title{font-weight:600}.entry-meta{font-size:13px;color:var(--muted);margin-top:3px}.delete{border:0;background:none;color:var(--muted);padding:4px;min-height:auto}
+.day{padding:12px 0;border-bottom:1px solid var(--line)}.day:last-child{border-bottom:0}.day-head{font-weight:700}.day-stats{font-size:14px;color:var(--muted);margin-top:5px;line-height:1.6}
+.note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}.empty{text-align:center;color:var(--muted);padding:18px 5px}.error{color:var(--bad);font-size:13px;margin-top:10px}
+.familybox{max-width:520px;margin:35px auto}.familybox .panel{padding:20px}.divider{text-align:center;color:var(--muted);font-size:13px;margin:18px 0}
+.code{font-size:22px;font-weight:750;letter-spacing:2px}.sync{font-size:13px;color:var(--muted)}
+@media(min-width:620px){.stats{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<main>
+<div id="loading" class="familybox"><div class="panel"><h2>Claire Baby Tracker</h2><div class="muted">正在连接家庭记录…</div></div></div>
+
+<div id="onboard" class="familybox hidden">
+ <h1>Baby Tracker</h1><div class="sub">创建家庭，或使用 Family Code 加入已有家庭。</div>
+ <div class="panel">
+  <h2>Create a Family</h2>
+  <form id="createFamily"><label>Family name<input id="familyName" value="Claire's Family" maxlength="60" required></label>
+   <div class="actions" style="margin-top:12px"><button class="primary" type="submit">Create Family</button></div></form>
+  <div class="divider">— OR —</div>
+  <h2>Join a Family</h2>
+  <form id="joinFamily"><label>Family Code<input id="joinCode" maxlength="12" autocapitalize="characters" placeholder="例如 A1B2C3D4" required></label>
+   <div class="actions" style="margin-top:12px"><button class="primary" type="submit">Join Family</button></div></form>
+  <div id="familyError" class="error"></div>
+ </div>
+</div>
+
+<div id="app" class="hidden">
+ <div class="top"><div><h1>Claire Baby Tracker</h1><div class="sub" id="todayLabel"></div></div><div><div class="badge" id="familyBadge"></div><div class="sync" id="syncStatus">Cloud sync</div></div></div>
+ <section class="stats">
+  <div class="card"><div class="label">今日奶量</div><div class="value"><span id="milk">0</span> <small>mL</small></div></div>
+  <div class="card"><div class="label">喂奶次数</div><div class="value" id="feeds">0</div></div>
+  <div class="card"><div class="label">Wet diapers</div><div class="value" id="pees">0</div></div>
+  <div class="card"><div class="label">Poops</div><div class="value" id="poops">0</div></div>
+ </section>
+
+ <section class="panel">
+  <h2>快速记录</h2>
+  <div class="tabs"><button class="active tab" data-tab="feed">🍼 Feed</button><button class="tab" data-tab="diaper">💧 Diaper</button><button class="tab" data-tab="health">⚖️ Weight / TcB</button></div>
+  <form id="feedForm"><div class="grid"><label>时间<input id="feedTime" type="datetime-local" required></label><label>奶量 (mL)<input id="amount" type="number" min="1" max="300" required placeholder="例如 45"></label><label class="full">类型<select id="milkType"><option>Breast milk</option><option>Formula</option><option>Mixed</option></select></label></div><div class="actions" style="margin-top:12px"><button class="primary" type="submit">保存喂奶</button></div></form>
+  <form id="diaperForm" class="hidden"><label>时间<input id="diaperTime" type="datetime-local" required></label><div class="actions" style="margin-top:12px"><button class="quick" type="button" data-diaper="pee">💧 小便</button><button class="quick" type="button" data-diaper="poop">💩 大便</button><button class="quick" type="button" data-diaper="both">💧💩 两者都有</button></div></form>
+  <form id="healthForm" class="hidden"><div class="grid"><label>时间<input id="healthTime" type="datetime-local" required></label><label>Weight (g)<input id="weight" type="number" min="500" max="10000" placeholder="例如 2710"></label><label>TcB<input id="tcb" type="number" min="0" max="40" step=".1" placeholder="例如 11.9"></label></div><div class="actions" style="margin-top:12px"><button class="primary" type="submit">保存体重 / TcB</button></div></form>
+  <div id="appError" class="error"></div>
+ </section>
+
+ <section class="panel"><h2>今天的记录</h2><div id="todayEntries"></div></section>
+ <section class="panel"><h2>历史记录 / Daily Summary</h2><div id="history"></div></section>
+ <section class="panel"><h2>Family Sharing</h2><div class="label">Family Code</div><div class="code" id="familyCode"></div><div class="note">把这个 Code 发给家人。家人在自己的手机打开同一个 Baby Tracker 网页，选择 Join a Family 并输入这个 Code。请只分享给你信任的人。</div></section>
+</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(async()=>{
+const SUPABASE_URL="https://bywwsvntjhtvqwnrzhvf.supabase.co", SUPABASE_KEY="sb_publishable_7NKUn7kakXpqTRkegb44IQ_QjVbpTBM";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id); let family=null, records=[], refreshTimer=null;
+const pad=n=>String(n).padStart(2,'0');
+const localDT=(d=new Date())=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const dayKey=s=>{const d=new Date(s);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+const today=()=>localDT().slice(0,10);
+const fmt=s=>new Date(s).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+function err(msg,where='appError'){ $(where).textContent=msg||'' }
+function show(id){['loading','onboard','app'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+function iso(v){return new Date(v).toISOString()}
+async function ensureAuth(){
+ let {data:{session}}=await sb.auth.getSession();
+ if(!session){const {error}=await sb.auth.signInAnonymously();if(error)throw error}
+}
+async function loadFamily(){
+ const {data:members,error}=await sb.from('family_members').select('family_id').limit(1); if(error)throw error;
+ if(!members?.length)return false;
+ const {data:f,error:fe}=await sb.from('families').select('id,name,invite_code').eq('id',members[0].family_id).single();if(fe)throw fe;
+ family=f; return true;
+}
+async function loadRecords(){
+ $('syncStatus').textContent='Syncing…';
+ const {data,error}=await sb.from('baby_records').select('*').eq('family_id',family.id).order('recorded_at',{ascending:false}).limit(1000);
+ if(error)throw error; records=data||[]; render(); $('syncStatus').textContent='Synced';
+}
+async function startApp(){
+ $('familyBadge').textContent=family.name; $('familyCode').textContent=family.invite_code; show('app');
+ ['feedTime','diaperTime','healthTime'].forEach(x=>$(x).value=localDT());
+ $('todayLabel').textContent=new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+ await loadRecords();
+ if(refreshTimer)clearInterval(refreshTimer);
+ refreshTimer=setInterval(()=>loadRecords().catch(e=>err(e.message)),15000);
+}
+$('createFamily').addEventListener('submit',async e=>{e.preventDefault();err('','familyError');try{
+ const {data,error}=await sb.rpc('create_family',{family_name:$('familyName').value.trim()});if(error)throw error;
+ family={id:data[0].family_id,name:data[0].family_name_result,invite_code:data[0].invite_code}; await startApp();
+}catch(x){err(x.message,'familyError')}});
+$('joinFamily').addEventListener('submit',async e=>{e.preventDefault();err('','familyError');try{
+ const {error}=await sb.rpc('join_family',{code:$('joinCode').value.trim().toUpperCase()});if(error)throw error;
+ if(!await loadFamily())throw Error('加入成功，但没有找到家庭资料。'); await startApp();
+}catch(x){err(x.message,'familyError')}});
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['feedForm','diaperForm','healthForm'].forEach(x=>$(x).classList.add('hidden'));$({feed:'feedForm',diaper:'diaperForm',health:'healthForm'}[b.dataset.tab]).classList.remove('hidden')}));
+async function add(row){err('');$('syncStatus').textContent='Saving…';const {error}=await sb.from('baby_records').insert({...row,family_id:family.id});if(error)throw error;await loadRecords()}
+$('feedForm').addEventListener('submit',async e=>{e.preventDefault();try{const a=Math.round(Number($('amount').value));if(a<1||a>300)throw Error('请输入 1–300 mL。');await add({kind:'feed',recorded_at:iso($('feedTime').value),amount_ml:a,milk_type:$('milkType').value});$('amount').value='';$('feedTime').value=localDT()}catch(x){err(x.message)}});
+document.querySelectorAll('[data-diaper]').forEach(b=>b.addEventListener('click',async()=>{try{await add({kind:b.dataset.diaper,recorded_at:iso($('diaperTime').value)});$('diaperTime').value=localDT()}catch(x){err(x.message)}}));
+$('healthForm').addEventListener('submit',async e=>{e.preventDefault();try{let w=$('weight').value?Number($('weight').value):null,t=$('tcb').value?Number($('tcb').value):null;if(w===null&&t===null)throw Error('请输入 Weight 或 TcB。');await add({kind:'health',recorded_at:iso($('healthTime').value),weight_g:w,tcb:t});$('weight').value='';$('tcb').value='';$('healthTime').value=localDT()}catch(x){err(x.message)}});
+function label(x){if(x.kind==='feed')return `🍼 ${x.amount_ml} mL · ${x.milk_type}`;if(x.kind==='pee')return'💧 小便';if(x.kind==='poop')return'💩 大便';if(x.kind==='both')return'💧💩 大便 + 小便';let a=[];if(x.weight_g!=null)a.push(`⚖️ ${x.weight_g} g`);if(x.tcb!=null)a.push(`TcB ${x.tcb}`);return a.join(' · ')}
+async function del(id){if(!confirm('删除这条记录？'))return;const {error}=await sb.from('baby_records').delete().eq('id',id);if(error)err(error.message);else await loadRecords()}
+function render(){
+ const td=today(), todays=records.filter(x=>dayKey(x.recorded_at)===td), fs=todays.filter(x=>x.kind==='feed');
+ $('milk').textContent=fs.reduce((s,x)=>s+(x.amount_ml||0),0);$('feeds').textContent=fs.length;$('pees').textContent=todays.filter(x=>x.kind==='pee'||x.kind==='both').length;$('poops').textContent=todays.filter(x=>x.kind==='poop'||x.kind==='both').length;
+ const te=$('todayEntries');te.innerHTML='';if(!todays.length)te.innerHTML='<div class="empty">今天还没有记录。</div>';
+ todays.forEach(x=>{const d=document.createElement('div');d.className='entry';const l=document.createElement('div');l.innerHTML=`<div class="entry-title">${label(x)}</div><div class="entry-meta">${fmt(x.recorded_at)}</div>`;const b=document.createElement('button');b.className='delete';b.textContent='删除';b.addEventListener('click',()=>del(x.id));d.append(l,b);te.appendChild(d)});
+ const groups={};records.forEach(x=>(groups[dayKey(x.recorded_at)]??=[]).push(x));const h=$('history');h.innerHTML='';
+ if(!records.length)h.innerHTML='<div class="empty">记录后，这里会自动生成每日汇总。</div>';
+ Object.keys(groups).sort().reverse().forEach(k=>{const a=groups[k],f=a.filter(x=>x.kind==='feed'),m=f.reduce((s,x)=>s+(x.amount_ml||0),0),p=a.filter(x=>x.kind==='pee'||x.kind==='both').length,po=a.filter(x=>x.kind==='poop'||x.kind==='both').length,he=a.filter(x=>x.kind==='health').sort((x,y)=>new Date(y.recorded_at)-new Date(x.recorded_at))[0];let hs='';if(he?.weight_g!=null)hs+=` · Weight ${he.weight_g} g`;if(he?.tcb!=null)hs+=` · TcB ${he.tcb}`;const d=document.createElement('div');d.className='day';d.innerHTML=`<div class="day-head">${new Date(k+'T12:00').toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'})}</div><div class="day-stats">🍼 ${m} mL / ${f.length} feeds · 💧 ${p} wet · 💩 ${po}${hs}</div>`;h.appendChild(d)});
+}
+try{await ensureAuth();if(await loadFamily())await startApp();else show('onboard')}catch(e){show('onboard');err('连接失败：'+e.message,'familyError')}
+})();
+</script>
+</body></html>
